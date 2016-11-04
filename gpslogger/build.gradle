@@ -7,7 +7,7 @@ buildscript {
         }
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.0.0'
+        classpath 'com.android.tools.build:gradle:2.2.2'
         classpath 'com.canelmas.let:let-plugin:0.1.10'
         classpath "com.mendhak.gradlecrowdin:crowdin-plugin:0.0.9"
         classpath 'org.jacoco:org.jacoco.core:0.7.4.201502262128'
@@ -124,7 +124,7 @@ android {
     }
 
     //Copies final APK to this directory
-    assembleRelease.doLast {
+    tasks.create(name: 'copyApk') {
         def File releaseApk
 
         copy{
@@ -150,6 +150,39 @@ android {
             ant.checksum(file: releaseApk, algorithm: "SHA256", pattern: "{0} {1}")
         }
     }
+
+    tasks.whenTaskAdded { task ->
+        if (task.name == 'assembleRelease') {
+            task.dependsOn 'copyApk'
+        }
+    }
+/*
+    assembleRelease.doLast {
+        def File releaseApk
+
+        copy{
+            from "build/outputs/apk/gpslogger-release.apk"
+            into "./"
+
+            // Use a closure to map the file name
+            rename { String fileName ->
+                releaseApk = file(fileName.replace('release', android.defaultConfig.versionName))
+                releaseApk.name
+            }
+        }
+
+        if (project.hasProperty("RELEASE_STORE_FILE")) {
+            //PGP Sign
+            //Verify with gpg --verify ~/Downloads/gpslogger-71.apk.asc
+            signing {
+                sign releaseApk
+            }
+
+            //SHA256 Checksum
+            //Verify with sha256sum -c ~/Downloads/gpslogger-71.apk.SHA256
+            ant.checksum(file: releaseApk, algorithm: "SHA256", pattern: "{0} {1}")
+        }
+    }*/
 
 }
 
@@ -271,6 +304,7 @@ tasks.whenTaskAdded { task ->
 }
 
 task buildTranslationArray << {
+    println("buildTranslationArray begin")
     def foundLocales = new StringBuilder()
     foundLocales.append("new String[]{")
 
@@ -285,6 +319,9 @@ task buildTranslationArray << {
     foundLocales.append("}")
     //Don't forget to remove the trailing comma
     def foundLocalesString = foundLocales.toString().replaceAll(',}','}')
+    println(foundLocalesString)
+    foundLocalesString = foundLocalesString.replaceAll("\\\\","\\\\\\\\");
+    println(foundLocalesString)
     android.defaultConfig.buildConfigField "String[]", "TRANSLATION_ARRAY", foundLocalesString
 
 }
